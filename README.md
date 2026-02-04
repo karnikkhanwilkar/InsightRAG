@@ -261,7 +261,7 @@ class Settings(BaseSettings):
     cohere_api_key: str
     
     # Embedding Configuration
-    embedding_model: str = "text-embedding-004"
+    embedding_model: str = "gemini-embedding-001"
     embedding_dimension: int = 768
     
     # Chunking Strategy
