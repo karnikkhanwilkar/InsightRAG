@@ -38,6 +38,9 @@ function App() {
       const response = await queryRAG(query);
       const responseTime = Date.now() - startTime;
 
+      console.log('Query response:', response);
+      console.log('Warning from response:', response.warning);
+
       setAnswer(response.answer || 'No answer found.');
       setSources(response.citations || []);
       setWarning(response.warning || null);

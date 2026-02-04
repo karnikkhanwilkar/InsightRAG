@@ -8,6 +8,11 @@ export default function AnswerPanel({ answer, isLoading, error, onCitationClick,
   const [isTyping, setIsTyping] = useState(false);
   const [thinkingStep, setThinkingStep] = useState(0);
 
+  // Debug log
+  useEffect(() => {
+    console.log('AnswerPanel - warning prop:', warning);
+  }, [warning]);
+
   // Thinking steps animation
   useEffect(() => {
     if (isLoading) {
