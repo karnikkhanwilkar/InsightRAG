@@ -15,6 +15,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [highlightedSource, setHighlightedSource] = useState(null);
+  const [warning, setWarning] = useState(null);
   const answerRef = useRef(null);
 
   const handleQuery = async (query) => {
@@ -24,6 +25,7 @@ function App() {
     setSources([]);
     setMetrics(null);
     setHighlightedSource(null);
+    setWarning(null);
 
     // Scroll to answer section
     setTimeout(() => {
@@ -38,6 +40,7 @@ function App() {
 
       setAnswer(response.answer || 'No answer found.');
       setSources(response.citations || []);
+      setWarning(response.warning || null);
       
       // Calculate metrics
       setMetrics({
@@ -144,6 +147,7 @@ function App() {
                 isLoading={isLoading}
                 error={error}
                 onCitationClick={handleCitationClick}
+                warning={warning}
               />
             </motion.div>
           )}

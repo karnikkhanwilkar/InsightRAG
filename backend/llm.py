@@ -106,6 +106,49 @@ ANSWER:"""
         
         return citations
     
+    def generate_answer_with_general_knowledge(self, query: str) -> Tuple[str, List[Dict], int, int]:
+        """
+        Generate an answer using general knowledge when documents don't contain relevant info.
+        
+        Returns:
+            - answer: The generated answer from general knowledge
+            - citations: Empty list (no citations for general knowledge)
+            - input_tokens: Estimated input tokens
+            - output_tokens: Estimated output tokens
+        """
+        # Create prompt for general knowledge
+        prompt = f"""You are a helpful AI assistant. Answer the following question using your general knowledge.
+
+INSTRUCTIONS:
+1. Provide a clear, accurate answer based on your training data
+2. Be concise but informative
+3. If you're uncertain, acknowledge it
+4. Do NOT make up information
+5. Start with: "Based on general knowledge: "
+
+QUESTION: {query}
+
+ANSWER:"""
+        
+        # Count input tokens
+        input_tokens = len(self.encoder.encode(prompt))
+        
+        # Generate response
+        try:
+            response = self.client.models.generate_content(
+                model=self.settings.llm_model,
+                contents=prompt
+            )
+            answer = response.text
+            
+            # Count output tokens
+            output_tokens = len(self.encoder.encode(answer))
+            
+            return answer, [], input_tokens, output_tokens
+        except Exception as e:
+            print(f"LLM error in general knowledge: {e}")
+            return f"I apologize, but I encountered an error generating an answer: {str(e)}", [], input_tokens, 0
+    
     def count_tokens(self, text: str) -> int:
         """Count tokens in text."""
         return len(self.encoder.encode(text))

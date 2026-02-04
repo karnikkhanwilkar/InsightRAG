@@ -56,6 +56,7 @@ class QueryResponse(BaseModel):
     latency_ms: int
     input_tokens: int
     output_tokens: int
+    warning: Optional[str] = None
 
 
 @app.get("/")
@@ -189,12 +190,43 @@ async def query(request: QueryRequest):
         
         elapsed_ms = int((time.time() - start_time) * 1000)
         
+        # Check if answer indicates no relevant information
+        no_info_indicators = [
+            "couldn't find relevant information",
+            "don't have information",
+            "no information available",
+            "not mentioned in the documents"
+        ]
+        
+        answer_lower = answer.lower()
+        has_no_info = any(indicator in answer_lower for indicator in no_info_indicators)
+        
+        warning = None
+        if has_no_info:
+            # Try generating with general knowledge
+            print("Context not relevant. Attempting general knowledge answer...")
+            general_answer, _, gen_input_tokens, gen_output_tokens = llm.generate_answer_with_general_knowledge(
+                request.question
+            )
+            
+            warning = "⚠️ Your documents don't contain specific information about this query. This answer is generated from general AI knowledge. For more accurate answers, please upload relevant documentation."
+            
+            return QueryResponse(
+                answer=general_answer,
+                citations=citations,
+                latency_ms=elapsed_ms,
+                input_tokens=gen_input_tokens,
+                output_tokens=gen_output_tokens,
+                warning=warning
+            )
+        
         return QueryResponse(
             answer=answer,
             citations=citations,
             latency_ms=elapsed_ms,
             input_tokens=input_tokens,
-            output_tokens=output_tokens
+            output_tokens=output_tokens,
+            warning=None
         )
     
     except Exception as e:

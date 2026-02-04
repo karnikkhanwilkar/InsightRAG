@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageSquare, Loader2, AlertCircle, Quote, Search, Zap, Brain } from 'lucide-react';
+import { MessageSquare, Loader2, AlertCircle, Quote, Search, Zap, Brain, AlertTriangle } from 'lucide-react';
 import { cn } from '../lib/utils';
 
-export default function AnswerPanel({ answer, isLoading, error, onCitationClick }) {
+export default function AnswerPanel({ answer, isLoading, error, onCitationClick, warning }) {
   const [displayedText, setDisplayedText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [thinkingStep, setThinkingStep] = useState(0);
@@ -107,6 +107,21 @@ export default function AnswerPanel({ answer, isLoading, error, onCitationClick 
         <h2 className="text-2xl font-semibold text-foreground">Answer</h2>
         <MessageSquare className="w-6 h-6 text-purple-400" />
       </div>
+
+      {/* Warning Banner */}
+      <AnimatePresence>
+        {warning && !isLoading && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mb-4 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-3"
+          >
+            <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-amber-200 leading-relaxed">{warning}</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Content */}
       <div className="flex-1 flex items-center justify-center">
