@@ -49,54 +49,66 @@ export default function AnswerPanel({ answer, isLoading, error, onCitationClick,
   }, [answer, isLoading]);
 
   const renderAnswerWithCitations = (text) => {
-    // Match citations like [1], [2], etc.
-    const citationRegex = /\[(\d+)\]/g;
-    const parts = [];
-    let lastIndex = 0;
-    let match;
+    // Remove extra asterisks (markdown bold formatting)
+    let cleanedText = text.replace(/\*\*/g, '');
+    
+    // Split text into paragraphs
+    const paragraphs = cleanedText.split('\n\n').filter(p => p.trim());
+    
+    return paragraphs.map((paragraph, pIndex) => {
+      // Match citations like [1], [2], etc.
+      const citationRegex = /\[(\d+)\]/g;
+      const parts = [];
+      let lastIndex = 0;
+      let match;
 
-    while ((match = citationRegex.exec(text)) !== null) {
-      // Add text before citation
-      if (match.index > lastIndex) {
+      while ((match = citationRegex.exec(paragraph)) !== null) {
+        // Add text before citation
+        if (match.index > lastIndex) {
+          parts.push({
+            type: 'text',
+            content: paragraph.slice(lastIndex, match.index),
+          });
+        }
+
+        // Add citation
+        parts.push({
+          type: 'citation',
+          content: match[1],
+          fullMatch: match[0],
+        });
+
+        lastIndex = match.index + match[0].length;
+      }
+
+      // Add remaining text
+      if (lastIndex < paragraph.length) {
         parts.push({
           type: 'text',
-          content: text.slice(lastIndex, match.index),
+          content: paragraph.slice(lastIndex),
         });
       }
 
-      // Add citation
-      parts.push({
-        type: 'citation',
-        content: match[1],
-        fullMatch: match[0],
-      });
-
-      lastIndex = match.index + match[0].length;
-    }
-
-    // Add remaining text
-    if (lastIndex < text.length) {
-      parts.push({
-        type: 'text',
-        content: text.slice(lastIndex),
-      });
-    }
-
-    return parts.map((part, index) => {
-      if (part.type === 'citation') {
-        return (
-          <motion.button
-            key={index}
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => onCitationClick?.(parseInt(part.content))}
-            className="inline-flex items-center justify-center w-6 h-6 text-xs font-medium bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 rounded border border-purple-500/30 hover:border-purple-400 transition-all cursor-pointer mx-0.5"
-          >
-            {part.content}
-          </motion.button>
-        );
-      }
-      return <span key={index}>{part.content}</span>;
+      return (
+        <p key={pIndex} className="mb-4 last:mb-0 leading-relaxed">
+          {parts.map((part, index) => {
+            if (part.type === 'citation') {
+              return (
+                <motion.button
+                  key={index}
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => onCitationClick?.(parseInt(part.content))}
+                  className="inline-flex items-center justify-center w-6 h-6 text-xs font-medium bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 rounded border border-purple-500/30 hover:border-purple-400 transition-all cursor-pointer mx-0.5"
+                >
+                  {part.content}
+                </motion.button>
+              );
+            }
+            return <span key={index}>{part.content}</span>;
+          })}
+        </p>
+      );
     });
   };
 
@@ -220,13 +232,13 @@ export default function AnswerPanel({ answer, isLoading, error, onCitationClick,
               className="w-full"
             >
               <div className="prose prose-invert prose-lg max-w-none">
-                <div className="text-foreground leading-relaxed space-y-4">
+                <div className="text-foreground text-base">
                   {renderAnswerWithCitations(displayedText)}
                   {isTyping && (
                     <motion.span
                       animate={{ opacity: [1, 0] }}
                       transition={{ duration: 0.8, repeat: Infinity }}
-                      className="inline-block w-2 h-5 bg-purple-400 ml-1"
+                      className="inline-block w-0.5 h-5 bg-purple-400 ml-1"
                     />
                   )}
                 </div>
