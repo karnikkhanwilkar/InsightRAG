@@ -163,7 +163,7 @@ function App() {
             animate={{ opacity: 1 }}
             transition={{ delay: 0.5 }}
           >
-            Built with ❤️ using React • Tailwind • Framer Motion
+            Built without lorem ipsum
           </motion.p>
         </footer>
       </div>
