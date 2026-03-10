@@ -1,5 +1,7 @@
 import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import AuthPage from './components/AuthPage';
 import Header from './components/Header';
 import IngestCard from './components/IngestCard';
 import QueryBox from './components/QueryBox';
@@ -8,7 +10,8 @@ import SourcesPanel from './components/SourcesPanel';
 import MetricsBar from './components/MetricsBar';
 import { queryRAG } from './api/api';
 
-function App() {
+function MainApp() {
+  const { user, loading, profile, refreshProfile } = useAuth();
   const [answer, setAnswer] = useState('');
   const [sources, setSources] = useState([]);
   const [metrics, setMetrics] = useState(null);
@@ -16,7 +19,24 @@ function App() {
   const [error, setError] = useState('');
   const [highlightedSource, setHighlightedSource] = useState(null);
   const [warning, setWarning] = useState(null);
+  const [creditsInfo, setCreditsInfo] = useState(null);
   const answerRef = useRef(null);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+          className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full"
+        />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <AuthPage />;
+  }
 
   const handleQuery = async (query) => {
     setIsLoading(true);
@@ -26,6 +46,7 @@ function App() {
     setMetrics(null);
     setHighlightedSource(null);
     setWarning(null);
+    setCreditsInfo(null);
 
     // Scroll to answer section
     setTimeout(() => {
@@ -38,12 +59,20 @@ function App() {
       const response = await queryRAG(query);
       const responseTime = Date.now() - startTime;
 
-      console.log('Query response:', response);
-      console.log('Warning from response:', response.warning);
-
       setAnswer(response.answer || 'No answer found.');
       setSources(response.citations || []);
       setWarning(response.warning || null);
+      
+      // Update credits info
+      if (response.credits_remaining !== undefined) {
+        setCreditsInfo({
+          remaining: response.credits_remaining,
+          deducted: response.credits_deducted,
+        });
+      }
+      
+      // Refresh profile to get updated credits
+      await refreshProfile();
       
       // Calculate metrics
       setMetrics({
@@ -52,10 +81,15 @@ function App() {
         tokensUsed: (response.input_tokens || 0) + (response.output_tokens || 0),
         reranker: 'Cohere',
         llm: 'Gemini 2.0',
+        creditsDeducted: response.credits_deducted,
       });
     } catch (err) {
       console.error('Query error:', err);
-      setError(err.response?.data?.detail || err.message || 'Failed to get answer');
+      if (err.response?.status === 403) {
+        setError('No credits remaining. Credits refresh every 48 hours.');
+      } else {
+        setError(err.response?.data?.detail || err.message || 'Failed to get answer');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -64,13 +98,10 @@ function App() {
   const handleCitationClick = (citationNumber) => {
     setHighlightedSource(citationNumber);
     
-    // Scroll to source
     setTimeout(() => {
       const sourceElement = document.querySelector(`[data-source="${citationNumber}"]`);
       if (sourceElement) {
-        // Get the position of the element
         const elementTop = sourceElement.getBoundingClientRect().top + window.pageYOffset;
-        // Scroll to position with offset for header
         window.scrollTo({
           top: elementTop - 120,
           behavior: 'smooth'
@@ -78,7 +109,6 @@ function App() {
       }
     }, 100);
 
-    // Clear highlight after 2 seconds
     setTimeout(() => {
       setHighlightedSource(null);
     }, 2000);
@@ -107,7 +137,11 @@ function App() {
             </div>
             
             <div className="h-full">
-              <QueryBox onQuery={handleQuery} isLoading={isLoading} />
+              <QueryBox 
+                onQuery={handleQuery} 
+                isLoading={isLoading}
+                creditsRemaining={profile?.credits_remaining}
+              />
             </div>
             
             {/* Sources + Metrics Column */}
@@ -168,6 +202,14 @@ function App() {
         </footer>
       </div>
     </div>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <MainApp />
+    </AuthProvider>
   );
 }
 

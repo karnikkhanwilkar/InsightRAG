@@ -1,10 +1,15 @@
 import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, FileText, CheckCircle2, Loader2, X, Copy, Database, Zap } from 'lucide-react';
+import { Upload, FileText, CheckCircle2, Loader2, X, Database, Zap, AlertTriangle } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { ingestDocument } from '../api/api';
+import { useAuth } from '../context/AuthContext';
+
+const MAX_FILE_SIZE_MB = 10;
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 export default function IngestCard() {
+  const { refreshProfile } = useAuth();
   const [isDragging, setIsDragging] = useState(false);
   const [file, setFile] = useState(null);
   const [text, setText] = useState('');
@@ -14,6 +19,19 @@ export default function IngestCard() {
   const [progress, setProgress] = useState(0);
   const [chunksCount, setChunksCount] = useState(0);
   const fileInputRef = useRef(null);
+
+  const validateFile = (f) => {
+    if (!f) return false;
+    if (f.type !== 'application/pdf' && f.type !== 'text/plain') {
+      setError('Please upload a PDF or TXT file');
+      return false;
+    }
+    if (f.size > MAX_FILE_SIZE_BYTES) {
+      setError(`File size exceeds ${MAX_FILE_SIZE_MB} MB limit (${(f.size / (1024 * 1024)).toFixed(1)} MB)`);
+      return false;
+    }
+    return true;
+  };
 
   const handleDragOver = (e) => {
     e.preventDefault();
@@ -29,17 +47,15 @@ export default function IngestCard() {
     e.preventDefault();
     setIsDragging(false);
     const droppedFile = e.dataTransfer.files[0];
-    if (droppedFile && (droppedFile.type === 'application/pdf' || droppedFile.type === 'text/plain')) {
+    if (validateFile(droppedFile)) {
       setFile(droppedFile);
       setError('');
-    } else {
-      setError('Please upload a PDF or TXT file');
     }
   };
 
   const handleFileSelect = (e) => {
     const selectedFile = e.target.files[0];
-    if (selectedFile) {
+    if (selectedFile && validateFile(selectedFile)) {
       setFile(selectedFile);
       setError('');
     }
@@ -51,11 +67,16 @@ export default function IngestCard() {
       return;
     }
 
+    // Double-check file size
+    if (file && file.size > MAX_FILE_SIZE_BYTES) {
+      setError(`File size exceeds ${MAX_FILE_SIZE_MB} MB limit`);
+      return;
+    }
+
     setIsLoading(true);
     setError('');
     setProgress(0);
 
-    // Simulate progress
     const progressInterval = setInterval(() => {
       setProgress((prev) => {
         if (prev >= 90) {
@@ -71,6 +92,10 @@ export default function IngestCard() {
       setProgress(100);
       setIsSuccess(true);
       setChunksCount(result.chunks_created || result.chunks_indexed || 0);
+      
+      // Refresh profile to update storage info
+      await refreshProfile();
+      
       setTimeout(() => {
         setIsSuccess(false);
         setFile(null);
@@ -78,7 +103,12 @@ export default function IngestCard() {
         setProgress(0);
       }, 4000);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to ingest document');
+      const detail = err.response?.data?.detail || 'Failed to ingest document';
+      if (err.response?.status === 413) {
+        setError(`File too large. Maximum size is ${MAX_FILE_SIZE_MB} MB.`);
+      } else {
+        setError(detail);
+      }
       setProgress(0);
     } finally {
       setIsLoading(false);
@@ -109,7 +139,12 @@ export default function IngestCard() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-foreground">Document Ingestion</h2>
-        <FileText className="w-4 h-4 text-purple-400" />
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground px-2 py-0.5 bg-white/5 rounded-md border border-white/10">
+            Max {MAX_FILE_SIZE_MB} MB
+          </span>
+          <FileText className="w-4 h-4 text-purple-400" />
+        </div>
       </div>
 
       {/* Drag & Drop Area */}
@@ -125,7 +160,6 @@ export default function IngestCard() {
             : 'border-white/20 hover:border-white/40 hover:bg-white/5'
         )}
       >
-        {/* Glow effect on drag */}
         {isDragging && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -158,7 +192,12 @@ export default function IngestCard() {
               </div>
               <div>
                 <p className="text-sm font-medium text-foreground">{file.name}</p>
-                <p className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(1)} KB</p>
+                <p className="text-xs text-muted-foreground">
+                  {(file.size / 1024).toFixed(1)} KB
+                  {file.size > MAX_FILE_SIZE_BYTES && (
+                    <span className="text-red-400 ml-1">(exceeds limit!)</span>
+                  )}
+                </p>
               </div>
             </>
           ) : (
@@ -168,7 +207,7 @@ export default function IngestCard() {
                 <p className="text-sm font-medium text-foreground">
                   Drop your PDF or TXT file here
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">or click to browse</p>
+                <p className="text-xs text-muted-foreground mt-1">or click to browse • Max {MAX_FILE_SIZE_MB} MB</p>
               </div>
             </>
           )}
@@ -239,8 +278,9 @@ export default function IngestCard() {
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="px-4 py-2 bg-destructive/20 border border-destructive/30 rounded-lg text-sm text-destructive"
+            className="px-4 py-2 bg-destructive/20 border border-destructive/30 rounded-lg text-sm text-destructive flex items-center gap-2"
           >
+            <AlertTriangle className="w-4 h-4 flex-shrink-0" />
             {error}
           </motion.div>
         )}

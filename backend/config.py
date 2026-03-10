@@ -22,6 +22,11 @@ class Settings(BaseSettings):
     top_k_retrieval: int = 8
     top_k_rerank: int = 4
     
+    # User limits
+    max_file_size_bytes: int = 10485760  # 10 MB
+    initial_credits: float = 5.0
+    tokens_per_credit: int = 1000  # 1000 tokens = 1 credit
+    
     class Config:
         env_file = ".env"
         case_sensitive = False

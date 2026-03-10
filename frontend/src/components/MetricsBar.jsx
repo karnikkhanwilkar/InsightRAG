@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Clock, FileText, Zap, Sparkles } from 'lucide-react';
+import { Clock, FileText, Zap, Sparkles, Coins } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 export default function MetricsBar({ metrics }) {
@@ -27,6 +27,16 @@ export default function MetricsBar({ metrics }) {
       color: 'text-yellow-400',
     },
   ];
+
+  // Add credits deducted if available
+  if (metrics.creditsDeducted !== undefined && metrics.creditsDeducted !== null) {
+    metricsData.push({
+      icon: Coins,
+      label: 'Credits Used',
+      value: metrics.creditsDeducted.toFixed(3),
+      color: 'text-orange-400',
+    });
+  }
 
   return (
     <motion.div
