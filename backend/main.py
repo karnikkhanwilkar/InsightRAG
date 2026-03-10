@@ -71,6 +71,7 @@ class IngestTextRequest(BaseModel):
 
 class QueryRequest(BaseModel):
     question: str
+    source_filter: Optional[List[str]] = None
 
 
 class Citation(BaseModel):
@@ -202,7 +203,8 @@ async def query(request: QueryRequest, current_user: Dict = Depends(get_current_
         retrieved_docs = db.similarity_search(
             query_embedding,
             user_id=user_id,
-            top_k=settings.top_k_retrieval
+            top_k=settings.top_k_retrieval,
+            source_filter=request.source_filter
         )
         print(f"Retrieved {len(retrieved_docs)} documents for user")
 
@@ -296,6 +298,35 @@ async def get_sources(current_user: Dict = Depends(get_current_user)):
         return {"sources": sources, "count": len(sources)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving sources: {str(e)}")
+
+
+@app.get("/sources/details")
+async def get_source_details(current_user: Dict = Depends(get_current_user)):
+    """Get detailed info about each source (chunk count, dates) for the authenticated user."""
+    try:
+        details = db.get_source_details(current_user["sub"])
+        return {"sources": details, "count": len(details)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving source details: {str(e)}")
+
+
+@app.delete("/sources/{source_name}")
+async def delete_source(source_name: str, current_user: Dict = Depends(get_current_user)):
+    """Delete all chunks for a specific source for the authenticated user."""
+    user_id = current_user["sub"]
+    try:
+        # Verify the source exists for this user
+        all_sources = db.get_all_sources(user_id)
+        if source_name not in all_sources:
+            raise HTTPException(status_code=404, detail="Source not found")
+
+        db.delete_by_source(source_name, user_id)
+        db._update_storage_used(user_id)
+        return {"message": f"Source '{source_name}' deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting source: {str(e)}")
 
 
 @app.get("/auth/profile")

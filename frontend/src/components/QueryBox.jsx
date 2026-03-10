@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Sparkles, Command, Coins, AlertCircle } from 'lucide-react';
+import { Search, Sparkles, Command, Coins, AlertCircle, FileText } from 'lucide-react';
 import { cn } from '../lib/utils';
 
-export default function QueryBox({ onQuery, isLoading, creditsRemaining }) {
+export default function QueryBox({ onQuery, isLoading, creditsRemaining, documentCount, selectedCount }) {
   const [query, setQuery] = useState('');
   
   const hasCredits = creditsRemaining === undefined || creditsRemaining > 0;
+  const hasDocs = documentCount > 0;
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -54,6 +55,21 @@ export default function QueryBox({ onQuery, isLoading, creditsRemaining }) {
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Coins className="w-3 h-3 text-yellow-400" />
             <span>{creditsRemaining.toFixed(2)} credits remaining</span>
+          </div>
+        )}
+
+        {/* Document count indicator */}
+        {hasDocs ? (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <FileText className="w-3 h-3 text-purple-400" />
+            <span>
+              Querying {selectedCount > 0 ? selectedCount : documentCount} of {documentCount} {documentCount === 1 ? 'document' : 'documents'}
+            </span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5 text-xs text-yellow-400/80">
+            <AlertCircle className="w-3 h-3" />
+            <span>No documents uploaded — upload one first</span>
           </div>
         )}
 

@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import AuthPage from './components/AuthPage';
@@ -8,10 +8,11 @@ import QueryBox from './components/QueryBox';
 import AnswerPanel from './components/AnswerPanel';
 import SourcesPanel from './components/SourcesPanel';
 import MetricsBar from './components/MetricsBar';
+import DocumentManager from './components/DocumentManager';
 import { queryRAG } from './api/api';
 
 function MainApp() {
-  const { user, loading, profile, refreshProfile } = useAuth();
+  const { user, loading, profile, documents, refreshProfile } = useAuth();
   const [answer, setAnswer] = useState('');
   const [sources, setSources] = useState([]);
   const [metrics, setMetrics] = useState(null);
@@ -20,7 +21,30 @@ function MainApp() {
   const [highlightedSource, setHighlightedSource] = useState(null);
   const [warning, setWarning] = useState(null);
   const [creditsInfo, setCreditsInfo] = useState(null);
+  const [selectedSources, setSelectedSources] = useState([]);
   const answerRef = useRef(null);
+
+  // Auto-select all documents when the document list changes
+  useEffect(() => {
+    if (documents.length > 0) {
+      setSelectedSources((prev) => {
+        // Add any new documents that aren't already in the selection
+        const existingSources = new Set(prev);
+        const currentSources = new Set(documents.map((d) => d.source));
+        
+        // Keep previously selected sources that still exist, add new ones
+        const updated = prev.filter((s) => currentSources.has(s));
+        for (const doc of documents) {
+          if (!existingSources.has(doc.source)) {
+            updated.push(doc.source);
+          }
+        }
+        return updated;
+      });
+    } else {
+      setSelectedSources([]);
+    }
+  }, [documents]);
 
   if (loading) {
     return (
@@ -56,7 +80,12 @@ function MainApp() {
     const startTime = Date.now();
 
     try {
-      const response = await queryRAG(query);
+      // Pass selected sources as filter (null = search all)
+      const sourceFilter = selectedSources.length > 0 && selectedSources.length < documents.length
+        ? selectedSources
+        : null;
+
+      const response = await queryRAG(query, sourceFilter);
       const responseTime = Date.now() - startTime;
 
       setAnswer(response.answer || 'No answer found.');
@@ -141,6 +170,8 @@ function MainApp() {
                 onQuery={handleQuery} 
                 isLoading={isLoading}
                 creditsRemaining={profile?.credits_remaining}
+                documentCount={documents.length}
+                selectedCount={selectedSources.length}
               />
             </div>
             
@@ -170,6 +201,12 @@ function MainApp() {
               )}
             </div>
           </div>
+
+          {/* Document Manager */}
+          <DocumentManager
+            selectedSources={selectedSources}
+            onSelectionChange={setSelectedSources}
+          />
 
           {/* Answer Section - Full Width */}
           {(answer || isLoading || error) && (

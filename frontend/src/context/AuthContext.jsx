@@ -8,10 +8,12 @@ export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState(null);
+  const [documents, setDocuments] = useState([]);
+
+  const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
 
   const fetchProfile = async (accessToken) => {
     try {
-      const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
       const response = await fetch(`${API_BASE_URL}/auth/profile`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
@@ -26,6 +28,22 @@ export function AuthProvider({ children }) {
     }
   };
 
+  const fetchDocuments = async (accessToken) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/sources/details`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setDocuments(data.sources || []);
+      }
+    } catch (err) {
+      console.error('Error fetching documents:', err);
+    }
+  };
+
   useEffect(() => {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -33,6 +51,7 @@ export function AuthProvider({ children }) {
       setUser(session?.user ?? null);
       if (session?.access_token) {
         fetchProfile(session.access_token);
+        fetchDocuments(session.access_token);
       }
       setLoading(false);
     });
@@ -44,8 +63,10 @@ export function AuthProvider({ children }) {
         setUser(session?.user ?? null);
         if (session?.access_token) {
           fetchProfile(session.access_token);
+          fetchDocuments(session.access_token);
         } else {
           setProfile(null);
+          setDocuments([]);
         }
         setLoading(false);
 
@@ -86,6 +107,7 @@ export function AuthProvider({ children }) {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
     setProfile(null);
+    setDocuments([]);
   };
 
   const refreshProfile = async () => {
@@ -94,16 +116,24 @@ export function AuthProvider({ children }) {
     }
   };
 
+  const refreshDocuments = async () => {
+    if (session?.access_token) {
+      await fetchDocuments(session.access_token);
+    }
+  };
+
   const value = {
     user,
     session,
     loading,
     profile,
+    documents,
     signUp,
     signIn,
     signInWithGoogle,
     signOut,
     refreshProfile,
+    refreshDocuments,
   };
 
   return (

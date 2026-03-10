@@ -51,13 +51,27 @@ export const ingestDocument = async (file, text) => {
   return response.data;
 };
 
-export const queryRAG = async (query) => {
-  const response = await api.post('/query', { question: query });
+export const queryRAG = async (query, sourceFilter = null) => {
+  const payload = { question: query };
+  if (sourceFilter && sourceFilter.length > 0) {
+    payload.source_filter = sourceFilter;
+  }
+  const response = await api.post('/query', payload);
   return response.data;
 };
 
 export const getSources = async () => {
   const response = await api.get('/sources');
+  return response.data;
+};
+
+export const getSourceDetails = async () => {
+  const response = await api.get('/sources/details');
+  return response.data;
+};
+
+export const deleteSource = async (sourceName) => {
+  const response = await api.delete(`/sources/${encodeURIComponent(sourceName)}`);
   return response.data;
 };
 

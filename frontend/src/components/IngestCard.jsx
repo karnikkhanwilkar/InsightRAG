@@ -9,7 +9,7 @@ const MAX_FILE_SIZE_MB = 10;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 export default function IngestCard() {
-  const { refreshProfile } = useAuth();
+  const { refreshProfile, refreshDocuments } = useAuth();
   const [isDragging, setIsDragging] = useState(false);
   const [file, setFile] = useState(null);
   const [text, setText] = useState('');
@@ -93,8 +93,8 @@ export default function IngestCard() {
       setIsSuccess(true);
       setChunksCount(result.chunks_created || result.chunks_indexed || 0);
       
-      // Refresh profile to update storage info
-      await refreshProfile();
+      // Refresh profile to update storage info and document list
+      await Promise.all([refreshProfile(), refreshDocuments()]);
       
       setTimeout(() => {
         setIsSuccess(false);

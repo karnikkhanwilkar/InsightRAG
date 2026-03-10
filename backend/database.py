@@ -56,9 +56,10 @@ class VectorDatabase:
         # Update storage used
         self._update_storage_used(user_id)
     
-    def similarity_search(self, query_embedding: List[float], user_id: str, top_k: int = 8) -> List[Dict]:
+    def similarity_search(self, query_embedding: List[float], user_id: str, top_k: int = 8, source_filter: Optional[List[str]] = None) -> List[Dict]:
         """
         Perform similarity search using pgvector, filtered to user's documents only.
+        Optionally filter by specific source names.
         """
         try:
             result = self.client.rpc(
@@ -75,6 +76,10 @@ class VectorDatabase:
             print(f"DEBUG: Similarity search returned {len(result.data) if result.data else 0} results")
             
             if result.data and len(result.data) > 0:
+                # Apply source filter if provided
+                if source_filter:
+                    result.data = [doc for doc in result.data if doc.get("source") in source_filter]
+                    print(f"DEBUG: After source filter, {len(result.data)} results remain")
                 return result.data
             
             print("WARNING: RPC returned 0 results for user")
@@ -84,7 +89,10 @@ class VectorDatabase:
             print(f"ERROR in similarity_search RPC: {e}")
             # Fallback: Get user's documents
             try:
-                all_docs = self.client.table(self.table_name).select("*").eq("user_id", user_id).execute()
+                query = self.client.table(self.table_name).select("*").eq("user_id", user_id)
+                if source_filter:
+                    query = query.in_("source", source_filter)
+                all_docs = query.execute()
                 if all_docs.data and len(all_docs.data) > 0:
                     print(f"DEBUG: Fallback found {len(all_docs.data)} documents for user")
                     return all_docs.data[:top_k]
@@ -102,6 +110,29 @@ class VectorDatabase:
             sources = list(set([doc["source"] for doc in result.data]))
             return sources
         return []
+    
+    def get_source_details(self, user_id: str) -> List[Dict]:
+        """Get detailed info about each source for a user (name, chunk count, dates)."""
+        result = self.client.table(self.table_name).select(
+            "source, created_at"
+        ).eq("user_id", user_id).order("created_at", desc=True).execute()
+        
+        if not result.data:
+            return []
+        
+        # Aggregate by source
+        source_map = {}
+        for doc in result.data:
+            src = doc["source"]
+            if src not in source_map:
+                source_map[src] = {
+                    "source": src,
+                    "chunk_count": 0,
+                    "created_at": doc["created_at"]
+                }
+            source_map[src]["chunk_count"] += 1
+        
+        return list(source_map.values())
     
     # ---- User Profile Methods ----
     
