@@ -48,6 +48,11 @@ export function AuthProvider({ children }) {
           setProfile(null);
         }
         setLoading(false);
+
+        // Clean up OAuth tokens from URL hash after redirect
+        if (_event === 'SIGNED_IN' && window.location.hash.includes('access_token')) {
+          window.history.replaceState(null, '', window.location.pathname);
+        }
       }
     );
 
