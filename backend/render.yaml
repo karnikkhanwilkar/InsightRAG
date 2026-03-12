@@ -16,5 +16,7 @@ services:
         sync: false
       - key: COHERE_API_KEY
         sync: false
+      - key: ALLOWED_ORIGINS
+        value: "https://insight-rag.vercel.app,http://localhost:5173,http://localhost:3000"
       - key: PYTHON_VERSION
         value: 3.11.0
