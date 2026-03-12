@@ -17,17 +17,19 @@ from config import get_settings
 
 app = FastAPI(title="RAG Application API", version="2.0.0")
 
+# Initialize settings
+settings = get_settings()
+
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify your frontend domain
+    allow_origins=settings.allowed_origins_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # Initialize components
-settings = get_settings()
 chunker = TextChunker(chunk_size=settings.chunk_size, overlap=settings.chunk_overlap)
 embedder = Embedder()
 db = VectorDatabase()

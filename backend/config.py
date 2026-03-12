@@ -7,6 +7,11 @@ class Settings(BaseSettings):
     supabase_service_key: str
     google_api_key: str
     cohere_api_key: str
+    allowed_origins: str = "http://localhost:5173,http://localhost:3000"
+    
+    @property
+    def allowed_origins_list(self) -> list[str]:
+        return [origin.strip() for origin in self.allowed_origins.split(",") if origin.strip()]
     
     # Model configurations
     embedding_model: str = "models/gemini-embedding-001"
